@@ -1,7 +1,10 @@
 import struct
 
-DWORD = 4
-WORD = 2
+BYTE_8 = 8
+BYTE_4 = 4
+BYTE_2 = 2
+BYTE = 1
+NUMBER_OF_RVA_AND_SIZES = 16
 
 
 def analyzer(file):
@@ -11,14 +14,16 @@ def analyzer(file):
         if mz != b'MZ':
             print('не запустится')
             return
+
         e_lfanew = struct.unpack('<I', dos_header[60:64])[0]
         f.seek(e_lfanew)
-        pe_signature = f.read(DWORD)
+        pe_signature = f.read(BYTE_4)
         if pe_signature != b'PE\x00\x00':
             print('неверная PE сигнатура')
             return
-        point = f.seek(e_lfanew+DWORD)
-        file_header_machine = f.read(WORD)
+
+        point_file_header_start = f.seek(e_lfanew+BYTE_4)
+        file_header_machine = f.read(BYTE_2)
         file_header_machine_value = struct.unpack('<H', file_header_machine)[0]
 
         if file_header_machine_value == 332:
@@ -31,21 +36,33 @@ def analyzer(file):
             print('Нет такой архитектуры')
             return
 
-        file_header = WORD * 4 + DWORD * 3
-        point = f.seek(point + file_header)
-        optional_header_magic = f.read(WORD)
+        file_header_size = BYTE_2 * 4 + BYTE_4 * 3
+        point_optional_header_start = f.seek(point_file_header_start + file_header_size)
+        optional_header_magic = f.read(BYTE_2)
         optional_header_magic_value = struct.unpack('<H', optional_header_magic)[0]
-        print(optional_header_magic_value)
+
+        data_directory_sizes = BYTE_4 * 2 * NUMBER_OF_RVA_AND_SIZES
 
         if optional_header_magic_value == 267:
+            optional_header_size = BYTE * 2 + BYTE_2 * 9 + BYTE_4 * 19 + data_directory_sizes
             print('x32 (x86) исполняемый образ.')
         elif optional_header_magic_value == 523:
+            optional_header_size = BYTE * 2 + BYTE_2 * 9 + BYTE_4 * 13 + BYTE_8 * 5 + data_directory_sizes
             print('x64 исполняемый образ')
         elif optional_header_magic_value == 263:
             print('ROM образ')
         else:
             print('Нет образа')
             return
+
+        data_directory_size = BYTE_4 * 2
+        optional_header_without_dt_size = optional_header_size - data_directory_sizes
+        import_directory_start = optional_header_without_dt_size + data_directory_size
+        point_import_directory_start = f.seek(point_optional_header_start + import_directory_start)
+
+        import_directory = f.read(BYTE_4)
+        import_directory_va = struct.unpack('<I', import_directory)[0]
+        print(import_directory_va)
 
 
 if __name__ == "__main__":
