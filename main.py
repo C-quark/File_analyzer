@@ -77,7 +77,22 @@ def analyzer(file):
         print(import_directory_va_value)
 
         point_section_header_start = f.seek(point_optional_header_start + optional_header_size)
-        print(point_section_header_start)
+        section_header_size = BYTE_8 + BYTE_4 * 7 + BYTE_2 * 2
+        for i in range(file_header_number_of_sections_value):
+            section_header = f.read(section_header_size)
+            section_header_virtual_size_value = struct.unpack('<I', section_header[BYTE_8:BYTE_8+BYTE_4])[0]
+            section_header_va_value = struct.unpack('<I', section_header[BYTE_8+BYTE_4:BYTE_8+BYTE_4*2])[0]
+            section_header_pointer_to_raw_data_value = struct.unpack('<I', section_header[BYTE_8+BYTE_4*3:BYTE_8+BYTE_4*4])[0]
+            print(section_header_virtual_size_value)
+            print(section_header_va_value)
+            print(section_header_pointer_to_raw_data_value)
+            start_section = section_header_virtual_size_value
+            end_section = start_section + section_header_virtual_size_value
+
+        def align(rva, alignment):
+            if rva % alignment == 0:
+                return rva
+            alignment * (rva // alignment) + alignment
 
 
 if __name__ == "__main__":
