@@ -76,6 +76,12 @@ def analyzer(file):
         import_directory_va_value = struct.unpack('<I', import_directory_va)[0]
         print(import_directory_va_value)
 
+        def align(rva, alignment):
+            if rva % alignment == 0:
+                return rva
+            align_rva = alignment * (rva // alignment) + alignment
+            return align_rva
+
         point_section_header_start = f.seek(point_optional_header_start + optional_header_size)
         section_header_size = BYTE_8 + BYTE_4 * 7 + BYTE_2 * 2
         for i in range(file_header_number_of_sections_value):
@@ -83,16 +89,15 @@ def analyzer(file):
             section_header_virtual_size_value = struct.unpack('<I', section_header[BYTE_8:BYTE_8+BYTE_4])[0]
             section_header_va_value = struct.unpack('<I', section_header[BYTE_8+BYTE_4:BYTE_8+BYTE_4*2])[0]
             section_header_pointer_to_raw_data_value = struct.unpack('<I', section_header[BYTE_8+BYTE_4*3:BYTE_8+BYTE_4*4])[0]
-            print(section_header_virtual_size_value)
-            print(section_header_va_value)
-            print(section_header_pointer_to_raw_data_value)
-            start_section = section_header_virtual_size_value
-            end_section = start_section + section_header_virtual_size_value
 
-        def align(rva, alignment):
-            if rva % alignment == 0:
-                return rva
-            alignment * (rva // alignment) + alignment
+            start_section = section_header_va_value
+            end_section = start_section + align(section_header_virtual_size_value, section_alignment_value)
+            if import_directory_va_value >= start_section and import_directory_va_value < end_section:
+                print(i, section_header_virtual_size_value, section_header_pointer_to_raw_data_value)
+                break
+
+        import_directory_table = import_directory_va_value - section_header_virtual_size_value + section_header_pointer_to_raw_data_value
+        print(import_directory_table)
 
 
 if __name__ == "__main__":
