@@ -107,21 +107,17 @@ def analyzer(file):
         for i in range(import_descriptor_size):
             import_descriptor = f.read(import_descriptor_size)
             import_descriptor_original_first_thunk = struct.unpack('<I', import_descriptor[0:BYTE_4])[0]
+            if import_descriptor_original_first_thunk == 0:
+                break
             original_first_thunk_list.append(import_descriptor_original_first_thunk)
             import_descriptor_name = struct.unpack('<I', import_descriptor[BYTE_4*3:BYTE_4*4])[0]
             name_list.append(import_descriptor_name)
             import_descriptor_first_thunk = struct.unpack('<I', import_descriptor[BYTE_4*4:BYTE_4*5])[0]
             first_thunk_list.append(import_descriptor_first_thunk)
 
-            if import_descriptor_original_first_thunk == 0:
-                original_first_thunk_list.remove(import_descriptor_original_first_thunk)
-                name_list.remove(import_descriptor_name)
-                first_thunk_list.remove(import_descriptor_first_thunk)
-                break
-
         print(original_first_thunk_list)
-        print(name_list)
-        print(first_thunk_list)
+        #print(name_list)
+        #print(first_thunk_list)
 
         for i in name_list:
             import_descriptor_name_raw = i - section_header_va_value + section_header_pointer_to_raw_data_value
@@ -133,34 +129,40 @@ def analyzer(file):
                 if name_value == 0:
                     break
 
-        thunk_data_list = []
+        thunks = []
         for i in original_first_thunk_list:
             original_first_thunk_raw = i - section_header_va_value + section_header_pointer_to_raw_data_value
+            print(original_first_thunk_raw)
             f.seek(original_first_thunk_raw)
+            current_thunks = []
             while True:
                 if optional_header_magic_value == 267:
                     thunk_data_size = BYTE_4
                     thunk_data = f.read(thunk_data_size)
                     thunk_data_value = struct.unpack('<I', thunk_data)[0]
-                    thunk_data_list.append(thunk_data_value)
+                    if thunk_data_value == 0:
+                        break
+                    current_thunks.append(thunk_data_value)
                 elif optional_header_magic_value == 523:
                     thunk_data_size = BYTE_8
                     thunk_data = f.read(thunk_data_size)
                     thunk_data_value = struct.unpack('<Q', thunk_data)[0]
-                    thunk_data_list.append(thunk_data_value)
-                elif thunk_data_value == 0:
-                    break
+                    if thunk_data_value == 0:
+                        break
+                    current_thunks.append(thunk_data_value)
 
-        print(thunk_data_list)
+            thunks.append(current_thunks)
 
-        for i in thunk_data_list:
+        print(thunks)
+
+        for i in thunks:
             thunk_data_raw = i - section_header_va_value + section_header_pointer_to_raw_data_value
             f.seek(thunk_data_raw)
             while True:
                 import_by_name_size = BYTE_4 + BYTE
                 import_by_name = f.read(import_by_name_size)
                 import_by_name_value = struct.unpack('<B', import_by_name[BYTE_4:BYTE_4+BYTE])[0]
-                print(import_by_name)
+                #print(import_by_name)
                 if import_by_name_value == 0:
                     break
 
